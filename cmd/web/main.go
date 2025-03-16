@@ -3,6 +3,7 @@ package main
 import (
 	// "flag"
 	"database/sql"
+	"html/template"
 	"log"
 	"log/slog"
 	"net/http"
@@ -14,8 +15,9 @@ import (
 )
 
 type application struct {
-	logger   *slog.Logger
-	snippets *models.SnippetModel
+	logger        *slog.Logger
+	snippets      *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -36,7 +38,6 @@ func main() {
 		AddSource: true,
 	}))
 
-
 	//get a db connection pool amnd defer close it
 	dbCredentials := os.Getenv("dbCredentials")
 	// dbCredentials := flag.String("dsn", "omkar:pass@password/snippetbox?parseTime=true", "snippetbox")
@@ -49,11 +50,16 @@ func main() {
 	logger.Info("database pool established succesfully")
 	defer db.Close()
 
-
+	templateCache, err := newTemplateCache()
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 	//injecting logger dependency to the entire app
 	app := &application{
-		logger: logger,
-		snippets: &models.SnippetModel{DB: db},
+		logger:        logger,
+		snippets:      &models.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	// logger.Info("port", port)
